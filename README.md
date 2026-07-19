@@ -37,7 +37,7 @@ O Linux System Manager PRO é uma interface de terminal (TUI - Text-based User I
 <a id=”video”><a>
 # 🎥 Apresentação em Vídeo
 
-[![Assista ao vídeo de apresentação](https://img.youtube.com/vi/COLOQUE_SEU_LINK_AQUI/0.jpg)](https://www.youtube.com/watch?v=COLOQUE_SEU_LINK_AQUI)
+[![Assista ao vídeo de apresentação](https://img.youtube.com/vi/d9vqeqamLUY/0.jpg)](https://www.youtube.com/watch?v=d9vqeqamLUY)<br>
 *(Clique na imagem acima para assistir ao vídeo demonstrando o funcionamento do sistema e o processo de automação).*
 
 
