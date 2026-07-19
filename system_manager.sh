@@ -146,6 +146,133 @@ menu_interativo() {
 }
 
 # ==============================================================================
+# DASHBOARD 1: MONITORAMENTO (TEMPO REAL)
+# ==============================================================================
+dashboard_monitoramento() {
+    registrar_log "Acessou Dashboard de Monitoramento"
+    while true; do
+        clear
+        echo -e "${CIANO}${NEGRITO}=== DASHBOARD DE PERFORMANCE (Atualizando a cada 1s) ===${NC}"
+        echo -e "${MAGENTA}Pressione [ESC] para voltar ao menu anterior.${NC}\n"
+
+        echo -e "${VERDE}${NEGRITO}[1] VISÃO GERAL DO HARDWARE/SISTEMA${NC}"
+        echo -e "Sistema/Kernel : $(uname -snrvm)"
+        echo -e "Uptime/Carga   : $(uptime)"
+        
+        echo -e "\n${VERDE}${NEGRITO}[2] USO DE MEMÓRIA RAM (Detalhado)${NC}"
+        free -h
+        
+        echo -e "\n${VERDE}${NEGRITO}[3] TOP 10 PROCESSOS MAIS PESADOS (CPU/RAM)${NC}"
+        ps aux --sort=-%cpu | head -n 11 | cut -c 1-100
+        
+        echo -e "\n${VERDE}${NEGRITO}[4] ESTADO DOS DISCOS E PARTIÇÕES${NC}"
+        df -h -T --exclude-type=tmpfs --exclude-type=devtmpfs | head -n 5
+
+        echo -e "\n${VERDE}${NEGRITO}[5] SAÚDE DO SISTEMA (Serviços Falhos)${NC}"
+        if pidof systemd >/dev/null || [[ -d /run/systemd/system ]]; then
+            falhas=$(systemctl --failed --no-legend | wc -l)
+            [[ $falhas -eq 0 ]] && echo "Nenhum serviço em falha." || systemctl --failed --no-pager | head -n 3
+        else
+            echo "Ambiente WSL/Container detectado. (Systemd inativo)."
+        fi
+
+        read -t 1 -rsn1 key
+        [[ "$key" == $'\e' ]] && break
+    done
+}
+
+# ==============================================================================
+# SUBMENU 2: ARQUIVOS E LIMPEZA
+# ==============================================================================
+menu_limpeza() {
+    local opcoes=(
+        "Criar Diretórios"
+        "Criar/Editar Arquivos (Vim/Nano)"
+        "Deletar Arquivo ou Diretório"
+        "Limpar Arquivos Temporários e Lixeira"
+        "Buscar os 10 Maiores Arquivos/Diretórios"
+        "Voltar"
+    )
+    while true; do
+        menu_interativo "   ARQUIVOS E LIMPEZA DO SISTEMA" "${opcoes[@]}"
+        escolha=$?
+        [[ $escolha -eq 255 || $escolha -eq 5 ]] && break
+
+        clear
+        case $escolha in
+            0)
+                echo -e "${AMARELO}--- CRIAR DIRETÓRIOS ---${NC}"
+                ler_input_com_esc "Nome do diretório: " nome_dir
+                if [[ "$nome_dir" == "__CANCELADO__" ]]; then echo -e "${VERMELHO}Operação cancelada.${NC}"; sleep 1; continue; fi
+                
+                if [[ ! -e "$nome_dir" ]]; then
+                    mkdir -p "$nome_dir"
+                    sucesso "Diretório '$nome_dir' criado!"
+                    registrar_log "Criou diretório: $nome_dir"
+                else
+                    erro "Já existe um arquivo/pasta com esse nome!"
+                fi
+                ;;
+            1)
+                echo -e "${AMARELO}--- CRIAR/EDITAR ARQUIVOS ---${NC}"
+                ler_input_com_esc "Nome do arquivo: " nome_arq
+                if [[ "$nome_arq" == "__CANCELADO__" ]]; then echo -e "${VERMELHO}Operação cancelada.${NC}"; sleep 1; continue; fi
+                
+                if command -v vim >/dev/null 2>&1; then
+                    vim "$nome_arq"
+                    sucesso "Edição de '$nome_arq' concluída!"
+                elif command -v nano >/dev/null 2>&1; then
+                    echo -e "${VERMELHO}Vim não encontrado! Abrindo com Nano...${NC}"
+                    sleep 1.5
+                    nano "$nome_arq"
+                    sucesso "Edição de '$nome_arq' concluída!"
+                else
+                    erro "Nenhum editor de texto está instalado."
+                fi
+                registrar_log "Abriu/Criou arquivo: $nome_arq"
+                ;;
+            2)
+                echo -e "${AMARELO}--- DELETAR ARQUIVO/DIRETÓRIO ---${NC}"
+                ler_input_com_esc "Caminho do alvo: " alvo
+                if [[ "$alvo" == "__CANCELADO__" ]]; then echo -e "${VERMELHO}Operação cancelada.${NC}"; sleep 1; continue; fi
+                
+                if [[ -e "$alvo" ]]; then
+                    processando "Deletando '$alvo'..."
+                    rm -rf "$alvo"
+                    sucesso "Excluído permanentemente!"
+                    registrar_log "Deletou permanentemente: $alvo"
+                else
+                    erro "Arquivo ou diretório não encontrado!"
+                fi
+                ;;
+            3)
+                echo -e "${AMARELO}--- LIMPANDO TEMPORÁRIOS ---${NC}"
+                processando "Esvaziando /tmp e Lixeira do Usuário..."
+                rm -rf /tmp/*$USER* 2>/dev/null
+                rm -rf ~/.local/share/Trash/files/* 2>/dev/null
+                sucesso "Sistema limpo com sucesso!"
+                registrar_log "Executou limpeza profunda"
+                ;;
+            4)
+                echo -e "${AMARELO}--- MAIORES ARQUIVOS/DIRETÓRIOS ---${NC}"
+                ler_input_com_esc "Digite o diretório alvo (Ex: / para raiz, . para atual): " dir_alvo
+                if [[ "$dir_alvo" == "__CANCELADO__" ]]; then echo -e "${VERMELHO}Operação cancelada.${NC}"; sleep 1; continue; fi
+
+                if [[ -d "$dir_alvo" ]]; then
+                    processando "Analisando..."
+                    echo -e "\n${VERDE}OS 10 MAIORES ITENS EM: $dir_alvo${NC}"
+                    du -ah "$dir_alvo" 2>/dev/null | sort -rh | head -n 11
+                    registrar_log "Buscou arquivos gigantes em $dir_alvo"
+                else
+                    erro "Diretório inválido!"
+                fi
+                echo -e "\n${MAGENTA}Pressione ENTER para voltar.${NC}"; read
+                ;;
+        esac
+    done
+}
+
+# ==============================================================================
 # MENU PRINCIPAL (LOOP CENTRAL)
 # ==============================================================================
 opcoes_principais=(
