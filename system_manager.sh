@@ -273,6 +273,264 @@ menu_limpeza() {
 }
 
 # ==============================================================================
+# SUBMENU 3: SEGURANÇA E BACKUP
+# ==============================================================================
+menu_seguranca() {
+    local opcoes=(
+        "Procurar Falhas de Permissão (777)"
+        "Gerar Backup Compactado Organizado"
+        "Voltar"
+    )
+    
+    while true; do
+        logins_recentes=$(last -a | head -n 5)
+        titulo_seg="   SEGURANÇA E BACKUP\n\n${AMARELO}[ HISTÓRICO DE LOGINS RECENTES ]${NC}\n${logins_recentes}\n"
+        
+        menu_interativo "$titulo_seg" "${opcoes[@]}"
+        escolha=$?
+        [[ $escolha -eq 255 || $escolha -eq 2 ]] && break
+
+        clear
+        case $escolha in
+            0)
+                echo -e "${AMARELO}--- ARQUIVOS COM PERMISSÃO 777 (RISCO) ---${NC}"
+                ler_input_com_esc "Diretório para buscar: " dir_busca
+                if [[ "$dir_busca" == "__CANCELADO__" ]]; then echo -e "${VERMELHO}Operação cancelada.${NC}"; sleep 1; continue; fi
+
+                if [[ -d "$dir_busca" ]]; then
+                    processando "Buscando vulnerabilidades..."
+                    resultado=$(find "$dir_busca" -type f -perm 0777 2>/dev/null)
+                    
+                    if [[ -z "$resultado" ]]; then
+                        sucesso "Excelente! Nenhuma vulnerabilidade (777) encontrada em: $dir_busca"
+                    else
+                        echo -e "${VERMELHO}Vulnerabilidades Encontradas:${NC}"
+                        echo "$resultado"
+                    fi
+                    registrar_log "Buscou permissões 777 em $dir_busca"
+                else
+                    erro "Diretório não encontrado!"
+                fi
+                echo -e "\n${MAGENTA}Pressione ENTER para voltar.${NC}"; read
+                ;;
+            1)
+                echo -e "${AMARELO}--- CRIADOR DE BACKUPS ORGANIZADOS ---${NC}"
+                ler_input_com_esc "Diretório que deseja fazer o backup: " origem
+                if [[ "$origem" == "__CANCELADO__" ]]; then echo -e "${VERMELHO}Operação cancelada.${NC}"; sleep 1; continue; fi
+
+                if [[ -d "$origem" ]]; then
+                    nome_dir=$(basename "$origem")
+                    pasta_destino="$BASE_DIR/$nome_dir"
+                    
+                    mkdir -p "$pasta_destino"
+                    processando "Compactando os dados..."
+                    
+                    nome_backup="backup_$(date +%Y%m%d_%H%M%S).tar.gz"
+                    tar -czf "$pasta_destino/$nome_backup" "$origem" 2>/dev/null
+                    
+                    sucesso "Backup salvo em: $pasta_destino/$nome_backup"
+                    registrar_log "Backup criado para $origem"
+                else
+                    erro "A origem informada não é um diretório válido."
+                fi
+                ;;
+        esac
+    done
+}
+
+# ==============================================================================
+# SUBMENU 4: INTERNET E REDES
+# ==============================================================================
+menu_redes() {
+    local opcoes=(
+        "Monitor de Rede (IPs, Portas e Conexão em Tempo Real)"
+        "Verificar Conexão Personalizada (Ping)"
+        "Teste de Velocidade (Speedtest)"
+        "Download de Arquivos (Wget / yt-dlp)"
+        "Voltar"
+    )
+
+    while true; do
+        menu_interativo "   INTERNET E REDES" "${opcoes[@]}"
+        escolha=$?
+        [[ $escolha -eq 255 || $escolha -eq 4 ]] && break
+
+        clear
+        case $escolha in
+            0)
+                registrar_log "Acessou Dashboard de Redes"
+                while true; do
+                    clear
+                    echo -e "${CIANO}${NEGRITO}=== MONITOR DE REDE (Atualizando a cada 1s) ===${NC}"
+                    echo -e "${MAGENTA}Pressione [ESC] para voltar ao menu anterior.${NC}\n"
+
+                    echo -e "${VERDE}${NEGRITO}[1] ENDEREÇOS IP E CONEXÕES ATIVAS${NC}"
+                    ip -br a 2>/dev/null || ifconfig 2>/dev/null
+                    
+                    echo -e "\n${VERDE}${NEGRITO}[2] PORTAS ABERTAS E SERVIÇOS OUVINDO${NC}"
+                    saida_ss=$(ss -tulpn 2>/dev/null | grep LISTEN)
+                    if [[ -n "$saida_ss" ]]; then
+                        echo "$saida_ss" | head -n 10
+                    else
+                        saida_netstat=$(netstat -tulpn 2>/dev/null | grep LISTEN)
+                        if [[ -n "$saida_netstat" ]]; then
+                            echo "$saida_netstat" | head -n 10
+                        else
+                            echo "Nenhuma porta detectada ou ferramentas incompatíveis."
+                        fi
+                    fi
+
+                    echo -e "\n${VERDE}${NEGRITO}[3] STATUS DE CONECTIVIDADE (Ping 8.8.8.8)${NC}"
+                    ping -c 1 -W 1 8.8.8.8 &>/dev/null && echo "Conectado à Internet (OK)" || echo "Sem conexão com a Internet (ERRO)"
+
+                    read -t 1 -rsn1 key
+                    [[ "$key" == $'\e' ]] && break
+                done
+                ;;
+            1)
+                echo -e "${AMARELO}--- VERIFICAR CONEXÃO (PING) ---${NC}"
+                echo -e "${CIANO}================= MANUAL DO PING =================${NC}"
+                echo -e "  O Ping testa se um site ou IP está online."
+                echo -e "  ${NEGRITO}O que digitar:${NC} Domínios ou IPs puros."
+                echo -e "  ${VERDE}Certo:${NC} google.com, 8.8.8.8, unicamp.br"
+                echo -e "  ${VERMELHO}Errado:${NC} https://google.com, www.site.com/pasta"
+                echo -e "${CIANO}==================================================${NC}\n"
+                
+                ler_input_com_esc "Informe o servidor a ser testado: " server
+                if [[ "$server" == "__CANCELADO__" ]]; then echo -e "${VERMELHO}Operação cancelada.${NC}"; sleep 1; continue; fi
+                
+                processando "Aguarde, enviando pacotes para $server..."
+                if ping -c 2 -w 2 "$server" > /dev/null 2>&1; then
+                    sucesso "A internet está funcionando e $server está acessível!"
+                else
+                    erro "Não está funcionando ou servidor indisponível."
+                fi
+                registrar_log "Testou ping personalizado para $server"
+                echo -e "\n${MAGENTA}Pressione ENTER para voltar.${NC}"; read
+                ;;
+            2)
+                echo -e "${AMARELO}--- TESTE DE VELOCIDADE (SPEEDTEST) ---${NC}"
+                if command -v speedtest &> /dev/null || command -v speedtest-cli &> /dev/null; then
+                    echo -e "${VERDE}Iniciando teste de conexão (Acompanhe em tempo real abaixo):${NC}\n"
+                    if command -v speedtest-cli &> /dev/null; then
+                        speedtest-cli --simple
+                    else
+                        speedtest --accept-license --accept-gdpr
+                    fi
+                else
+                    erro "O pacote 'speedtest' (ou speedtest-cli) não está instalado."
+                    echo -e "\n${AMARELO}Dica para instalar no Ubuntu/Debian:${NC}"
+                    echo -e "Abra um terminal normal e digite: ${VERDE}sudo apt install speedtest-cli${NC}"
+                fi
+                registrar_log "Executou Speedtest"
+                echo -e "\n${MAGENTA}Pressione ENTER para voltar.${NC}"; read
+                ;;
+            3)
+                echo -e "${AMARELO}--- DOWNLOAD DE ARQUIVOS E VÍDEOS ---${NC}"
+                echo -e "${CIANO}================= MANUAL DE DOWNLOAD =================${NC}"
+                echo -e "  Baixe qualquer arquivo ou vídeo da internet."
+                echo -e "  - Arquivos normais (.pdf, .zip, etc) usam ${VERDE}wget${NC}."
+                echo -e "  - Vídeos do YouTube usam ${VERDE}yt-dlp${NC} (com auto-instalador)."
+                echo -e "${CIANO}======================================================${NC}\n"
+
+                if ! command -v wget &> /dev/null; then
+                    erro "A ferramenta 'wget' não está instalada no seu sistema."
+                    echo -e "${AMARELO}Ela é obrigatória para fazer downloads ou instalar módulos.${NC}"
+                    echo -e "Abra um terminal e digite: ${VERDE}sudo apt install wget${NC}"
+                    echo -e "\n${MAGENTA}Pressione ENTER para voltar.${NC}"; read
+                    continue
+                fi
+                
+                ler_input_com_esc "Link do arquivo/vídeo: " link
+                if [[ "$link" == "__CANCELADO__" ]]; then echo -e "${VERMELHO}Operação cancelada.${NC}"; sleep 1; continue; fi
+                
+                # --- AUTO-INSTALADOR DE YOUTUBE (yt-dlp) ---
+                if [[ "$link" == *"youtube.com"* || "$link" == *"youtu.be"* ]]; then
+                    echo -e "\n${AMARELO}Detectado link do YouTube!${NC}"
+                    YTDLP_CMD="yt-dlp"
+                    
+                    if ! command -v yt-dlp &> /dev/null && [ ! -f "$HOME/.local/bin/yt-dlp" ]; then
+                        echo -e "${VERMELHO}A ferramenta de vídeos 'yt-dlp' não está instalada.${NC}"
+                        ler_input_com_esc "Deseja instalar o yt-dlp na sua pasta de usuário agora? (S/N): " resp_inst
+                        
+                        if [[ "${resp_inst,,}" == "s" ]]; then
+                            processando "Baixando o yt-dlp oficial do GitHub..."
+                            mkdir -p "$HOME/.local/bin"
+                            
+                            if wget -q --show-progress -O "$HOME/.local/bin/yt-dlp" "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"; then
+                                chmod a+rx "$HOME/.local/bin/yt-dlp"
+                                export PATH="$HOME/.local/bin:$PATH"
+                                sucesso "Instalado com sucesso!"
+                                YTDLP_CMD="$HOME/.local/bin/yt-dlp"
+                            else
+                                erro "Falha ao baixar o instalador do yt-dlp. Verifique sua conexão."
+                                sleep 2; continue
+                            fi
+                        else
+                            echo -e "${VERMELHO}Instalação cancelada. Abortando download.${NC}"
+                            sleep 2; continue
+                        fi
+                    else
+                        [[ -f "$HOME/.local/bin/yt-dlp" ]] && YTDLP_CMD="$HOME/.local/bin/yt-dlp"
+                    fi
+
+                    if ! command -v ffmpeg &> /dev/null; then
+                        echo -e "\n${VERMELHO}[ ATENÇÃO ] - FFmpeg não encontrado!${NC}"
+                        echo -e "O YouTube separa os arquivos de áudio e vídeo de alta qualidade."
+                        echo -e "Para juntá-los perfeitamente, o yt-dlp precisa do ${NEGRITO}ffmpeg${NC} instalado."
+                        echo -e "${AMARELO}Para instalar, abra outro terminal e rode: sudo apt install ffmpeg${NC}\n"
+                        sleep 4
+                    fi
+
+                    ler_input_com_esc "Caminho de destino (ex: $HOME/Vídeos): " caminho
+                    [[ "$caminho" == "__CANCELADO__" ]] && continue
+                    mkdir -p "$caminho"
+
+                    processando "Baixando o vídeo... (Aguarde)"
+                    
+                    # FLAG --recode-video mp4 ADICIONADA: Força o FFmpeg a recodificar o vídeo para tocar em qualquer player!
+                    if $YTDLP_CMD -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --merge-output-format mp4 --recode-video mp4 -P "$caminho" "$link"; then
+                        sucesso "Vídeo baixado e convertido (MP4 Universal) em $caminho!"
+                    else
+                        erro "Falha ao baixar o vídeo."
+                    fi
+                    registrar_log "Baixou vídeo do YouTube em $caminho"
+                    echo -e "\n${MAGENTA}Pressione ENTER para voltar.${NC}"; read
+                    continue
+                fi
+
+                # --- WGET PADRÃO PARA ARQUIVOS ---
+                ler_input_com_esc "Caminho de destino (ex: $HOME/Downloads): " caminho
+                if [[ "$caminho" == "__CANCELADO__" ]]; then echo -e "${VERMELHO}Operação cancelada.${NC}"; sleep 1; continue; fi
+                
+                ler_input_com_esc "Nome final do arquivo (Deixe em branco p/ usar original): " nome_custom
+                if [[ "$nome_custom" == "__CANCELADO__" ]]; then echo -e "${VERMELHO}Operação cancelada.${NC}"; sleep 1; continue; fi
+
+                processando "Iniciando download... (Isso evitará travamentos na tela)"
+                mkdir -p "$caminho"
+                USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/114.0.0.0 Safari/537.36"
+                
+                if [[ -z "$nome_custom" ]]; then
+                    if wget -c -4 --tries=3 --timeout=10 --no-check-certificate --user-agent="$USER_AGENT" -P "$caminho" "$link"; then
+                        sucesso "Download concluído!"
+                    else
+                        erro "Falha no download. O servidor recusou (Anti-Bot) ou link inválido."
+                    fi
+                else
+                    if wget -c -4 --tries=3 --timeout=10 --no-check-certificate --user-agent="$USER_AGENT" -O "${caminho}/${nome_custom}" "$link"; then
+                        sucesso "Download salvo como '${nome_custom}'!"
+                    else
+                        erro "Falha no download. O servidor recusou (Anti-Bot) ou link inválido."
+                    fi
+                fi
+                registrar_log "Fez download com wget para $caminho"
+                echo -e "\n${MAGENTA}Pressione ENTER para voltar.${NC}"; read
+                ;;
+        esac
+    done
+}
+
+# ==============================================================================
 # MENU PRINCIPAL (LOOP CENTRAL)
 # ==============================================================================
 opcoes_principais=(
