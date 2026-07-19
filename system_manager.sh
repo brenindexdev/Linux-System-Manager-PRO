@@ -144,3 +144,36 @@ menu_interativo() {
         esac
     done
 }
+
+# ==============================================================================
+# MENU PRINCIPAL (LOOP CENTRAL)
+# ==============================================================================
+opcoes_principais=(
+    "Monitoramento e Saúde (Dashboards em Tempo Real)"
+    "Arquivos, Limpeza e Controle de Espaço"
+    "Segurança e Gerenciamento de Backups"
+    "Internet, Testes de Conexão e Redes"
+    "Auditoria e Leitura de Relatórios"
+    "Sair do PC Manager"
+)
+
+registrar_log "--- INICIOU SESSÃO ---"
+
+while true; do
+    menu_interativo "   LINUX SYSTEM MANAGER PRO" "${opcoes_principais[@]}"
+    escolha_principal=$?
+    
+    case $escolha_principal in
+        0) dashboard_monitoramento ;;
+        1) menu_limpeza ;;
+        2) menu_seguranca ;;
+        3) menu_redes ;;
+        4) exibir_relatorios ;;
+        5|255)
+            clear
+            echo -e "${VERDE}Encerrando o Linux System Manager Pro. Até logo, $USER!${NC}\n"
+            registrar_log "--- ENCERROU SESSÃO ---"
+            exit 0
+            ;;
+    esac
+done
