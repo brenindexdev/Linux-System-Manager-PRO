@@ -531,6 +531,30 @@ menu_redes() {
 }
 
 # ==============================================================================
+# SUBMENU 5: RELATÓRIOS
+# ==============================================================================
+exibir_relatorios() {
+    clear
+    echo -e "${CIANO}${NEGRITO}=== RELATÓRIOS DE AUDITORIA ===${NC}\n"
+    
+    echo -e "${AMARELO}Diretório de Armazenamento:${NC} $LOG_DIR"
+    total=$(wc -l < "$ARQUIVO_LOG" 2>/dev/null || echo 0)
+    echo -e "${AMARELO}Total de Ações Registradas:${NC} $total\n"
+
+    echo -e "${VERDE}ÚLTIMAS 50 AÇÕES:${NC}"
+    echo "--------------------------------------------------------"
+    if [[ -f "$ARQUIVO_LOG" ]]; then
+        tail -n 50 "$ARQUIVO_LOG"
+    else
+        echo "Nenhum log registrado até o momento."
+    fi
+    echo "--------------------------------------------------------"
+    
+    registrar_log "Visualizou o relatório de auditoria"
+    echo -e "\n${MAGENTA}Pressione ENTER para voltar ao Menu Principal.${NC}"; read
+}
+
+# ==============================================================================
 # MENU PRINCIPAL (LOOP CENTRAL)
 # ==============================================================================
 opcoes_principais=(
